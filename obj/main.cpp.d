@@ -93,6 +93,7 @@ obj/main.cpp.o: main.cpp /usr/include/c++/4.6/iostream \
  /usr/lib/gcc/arm-linux-gnueabihf/4.6/include/stdint.h \
  /usr/include/stdint.h /usr/include/arm-linux-gnueabihf/bits/in.h \
  /usr/include/arpa/inet.h /usr/include/string.h \
+ /usr/include/c++/4.6/sstream /usr/include/c++/4.6/bits/sstream.tcc \
  /usr/include/mysql/mysql.h /usr/include/mysql/mysql_version.h \
  /usr/include/mysql/mysql_com.h /usr/include/mysql/mysql_time.h \
  /usr/include/mysql/my_list.h /usr/include/mysql/typelib.h \

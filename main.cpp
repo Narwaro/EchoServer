@@ -149,21 +149,23 @@ void *thread_function( void *ptr )
 	
 				if(mysql_num_rows(res) == 0) {
 					//MYSQL_ROW row = mysql_fetch_row(res);
-				
+					sendback = string() + "You seem not to have an ID.\n";
+					send(c.sock, sendback.c_str(), sendback.size(), 0);
+
 				}
 			}
 		
 		} else {
-			sendback = string() + "#500-ER: Wrong request sent.";
+			sendback = string() + "#500-ER: Wrong request sent.\n";
             send(c.sock, sendback.c_str(), sendback.size(), 0);
 		}
 		
-		if(string(buf) == "\n") {
-			sendback = string() + "#300-ER: Empty String given.";
+		if(string(&buf[32]) == "\n") {
+			sendback = string() + "#300-ER: Empty String given.\n";
 			send(c.sock, sendback.c_str(), sendback.size(), 0);
 				
-		} else if(string(buf) == "ping") {
-			sendback = string()+ "#200-OK: pong";
+		} else if(string(&buf[32]) == "ping\n") {
+			sendback = string()+ "#200-OK: pong\n";
 			send(c.sock, sendback.c_str(), sendback.size(), 0);
 				
 		}

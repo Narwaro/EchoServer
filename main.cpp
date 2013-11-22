@@ -19,7 +19,7 @@ struct Connection
     sockaddr_in addr;
 };
 
-string itoa(double i)
+string itoa(long i)
 {
     stringstream ss;
     ss << i;
@@ -127,19 +127,20 @@ void *thread_function( void *ptr )
 		//Unique client ID is 32bit hex string. Client is sending ID in front of the request.
 		string cid = data.substr(0,32);
 		if(buf[32] == ':') {
-			if(cid != "00000000000000000000000000000000") {
+			if(cid == "00000000000000000000000000000000") {
 				string str;
 				string array = "abcdef0123456789";
 				for(int i = 0; i < 32; i++) {
 					int num = rand() % 16;
 					str += array[num];
 				}
-				int result = mysql_query(mConnection, ("INSERT INTO clients (ip, date, joined, cid) VALUES ('"+ss.str()+"','"+itoa(time(NULL))+"','"+itoa(time(NULL))+"','"+str+"')").c_str());
+				int result = mysql_query(mConnection, ("INSERT INTO clients (ip, date, joined, cid) VALUES ('"+ss.str()+"', '"+itoa(time(NULL))+"', '"+itoa(time(NULL))+"', '"+ str +"')").c_str());
 				if(result == 0) {
-					sendback = string() + "#210-OK: id:" + str;
+					sendback = string() + "#210-OK: id:" + str + "\n";
 		            send(c.sock, sendback.c_str(), sendback.size(), 0);
+					cout << "ID SENT." << endl;
 				} else {
-					sendback = string() + "#510-ER: Query failed." + str;
+					sendback = string() + "#510-ER: Query failed. " + mysql_error(mConnection) + "\n";
 	                send(c.sock, sendback.c_str(), sendback.size(), 0);
 				}
 			} else {
@@ -152,23 +153,28 @@ void *thread_function( void *ptr )
 					sendback = string() + "You seem not to have an ID.\n";
 					send(c.sock, sendback.c_str(), sendback.size(), 0);
 
+				} else {
+					cout << mysql_error(mConnection) << endl;
 				}
-			}
+			
 		
+				if(string(&buf[33]) == "\n") {
+					sendback = string() + "#300-ER: Empty String given.\n";
+					send(c.sock, sendback.c_str(), sendback.size(), 0);
+				
+				} else if(string(&buf[33]) == "ping\n") {
+					sendback = string()+ "#200-OK: pong\n";
+					send(c.sock, sendback.c_str(), sendback.size(), 0);		
+				}
+
+			
+			}	
+			
 		} else {
-			sendback = string() + "#500-ER: Wrong request sent.\n";
+            sendback = string() + "#500-ER: Wrong request sent:" +data + "\n";
             send(c.sock, sendback.c_str(), sendback.size(), 0);
-		}
-		
-		if(string(&buf[32]) == "\n") {
-			sendback = string() + "#300-ER: Empty String given.\n";
-			send(c.sock, sendback.c_str(), sendback.size(), 0);
-				
-		} else if(string(&buf[32]) == "ping\n") {
-			sendback = string()+ "#200-OK: pong\n";
-			send(c.sock, sendback.c_str(), sendback.size(), 0);
-				
-		}
+        }
+
 		memset(buf, 0, 4096);
 	}
     close(c.sock);

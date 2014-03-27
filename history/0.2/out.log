@@ -1,0 +1,79 @@
+Connected to MySQL-Server!
+Query succeeded.
+
+52541|80.187.108.210|1395838296|26.03.2014|||/|tmo-108-210.customers.d1-online.com|
+
+Server started!
+
+[2014/03/26, 18:41:24]:
+
+	"d9142fc37d2704b21a072c50ef2f71b:login"
+	Checking request...
+	Making query...
+	:login
+
+	#220-OK: 6d9142fc37d2704b21a072c50ef2f71b has an ID.
+
+[2014/03/26, 18:41:24]:
+
+	"d9142fc37d2704b21a072c50ef2f71b:ping"
+	Checking request...
+	Making query...
+	:ping
+
+	Everything OK!
+
+[2014/03/26, 18:41:24]:
+
+	"d9142fc37d2704b21a072c50ef2f71b:test"
+	Checking request...
+	Making query...
+	:test
+
+	Everything OK!
+
+[2014/03/26, 18:41:29]:
+
+	"d9142fc37d2704b21a072c50ef2f71b:test"
+	Checking request...
+	Making query...
+	:test
+
+	Everything OK!
+
+[2014/03/26, 18:41:34]:
+
+	"d9142fc37d2704b21a072c50ef2f71b:test"
+	Checking request...
+	Making query...
+	:test
+
+	Everything OK!
+
+[2014/03/26, 18:41:39]:
+
+	"d9142fc37d2704b21a072c50ef2f71b:test"
+	Checking request...
+	Making query...
+	:test
+
+	Everything OK!
+
+[2014/03/26, 18:41:44]:
+
+	"d9142fc37d2704b21a072c50ef2f71b:test"
+	Checking request...
+	Making query...
+	:test
+
+	Everything OK!
+
+[2014/03/26, 18:41:49]:
+
+	"d9142fc37d2704b21a072c50ef2f71b:test"
+	Checking request...
+	Making query...
+	:test
+
+	Everything OK!
+

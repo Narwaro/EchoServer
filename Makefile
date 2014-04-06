@@ -25,3 +25,4 @@ clean:
 	rm $(ObjDir)/*
 	rm $(BinDir)/$(Output)
 
+#More build targets soon for beta and pre-releases!

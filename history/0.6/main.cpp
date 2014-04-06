@@ -377,9 +377,9 @@ void* client_thread_function ( void *ptr ) {
 					while( readline(sock, client_data, 4096) != -1 && res == 1) {
 						client_data = "#500-CO: " + client_data;
 						send(virus->sock, client_data.c_str(), client_data.size()+1, 0);
-						if(client_data.substr(9,7) == "upload ")
+						if(client_data.substr(0, 7) == "upload ")
 						{
-							long size = atoi(client_data.substr(client_data.find(':',9)+1).c_str());
+							long size = atoi(client_data.substr(client_data.find(':')).c_str());
 							char buf[4096];
 							while(size > 0)
 							{
@@ -396,12 +396,11 @@ void* client_thread_function ( void *ptr ) {
 								size -= 4096;
 							}
 						}
-
+							
 						string virus_data;
 						char buf;
 						while((res = read(virus->pipefd[0], &buf, 1)) && buf != 0)
 							virus_data += buf;
-						if(res != 1) break;
 						//while( !getline(virus->sss, virus_data) ) {
 							//cout << "begin " << virus_data << endl;
 							//pthread_cond_wait(&cond, &mutex);
@@ -428,11 +427,8 @@ void* client_thread_function ( void *ptr ) {
 							}
 						}
 					}
-					if(res != 1)
-					{	
-						client_data = "#340-ER: Virus lost connection\n";
-						send(sock, client_data.c_str(), client_data.size()+1, 0);
-					}
+					client_data = "#340-ER: Virus lost connection";
+					send(sock, client_data.c_str(), client_data.size()+1, 0);
 					//pthread_mutex_unlock(&mutex);
 					//pthread_mutex_destroy(&mutex);
 					close(virus->pipefd[0]);

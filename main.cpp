@@ -21,6 +21,8 @@ struct Connection
 	string client_id;
     sockaddr_in addr;
 	int pipefd[2];
+	int pipefd_sync[2];
+	char buf[4096];
 };
 
 //pthread_cond_t cond = PTHREAD_COND_INITIALIZER;
@@ -97,7 +99,7 @@ int main()
 
 	if(bind(sock_server, (struct sockaddr*)&addr_server, sizeof(sockaddr_in)) < 0)
 	{
-	    cout << "Error: Could not bind socket!" << endl;
+	    cout << "Error: Could not bind socket! Perhaps another instance running?" << endl;
 	    return 1;
 	}
 	listen(sock_server, 5);
@@ -125,7 +127,7 @@ int main()
 
 	if(bind(sock_server2, (struct sockaddr*)&addr_server2, sizeof(sockaddr_in)) < 0)
 	{
-	    cout << "Error: Could not bind socket!" << endl;
+	    cout << "Error: Could not bind socket! Perhaps another instance running?" << endl;
 	    return 1;
 	}
 	listen(sock_server2, 5);
@@ -271,23 +273,17 @@ void *thread_function( void *ptr )
 		                send(c->sock, sendback.c_str(), sendback.size()+1, 0);
 					} else if(string(&buf[33]).substr(0, 4) == "bin:") {
 						long size = atoi(string(&buf[33]).substr(4).c_str());
-						cout << size << endl;
-						char buf[4096];
+						short readcount;
 						while(size > 0)
 						{
-							if(size > 4096)
-							{
-								recv(c->sock, buf, 4096, 0);
-								write(c->pipefd[1], buf, 4096);
-							}
+							if(size < 4096)
+								readcount = recv(c->sock, c->buf, size, 0);
 							else
-							{
-								recv(c->sock, buf, size, 0);
-								write(c->pipefd[1], buf, size);
-							}
-							size -= 4096;
+								readcount = recv(c->sock, c->buf, 4096, 0);
+							write(c->pipefd[1], &readcount, 2);
+							read(c->pipefd_sync[0], &readcount, 2);
+							size -= readcount;
 						}
-						cout << "OK" << endl;
 					} else {
 						sendback = string()+ "#510-ER: Command not found.";
 	                    send(c->sock, sendback.c_str(), sendback.size()+1, 0);
@@ -364,6 +360,7 @@ void* client_thread_function ( void *ptr ) {
 					//pthread_mutex_lock(&mutex);
 
 					pipe(virus->pipefd);
+					pipe(virus->pipefd_sync);
 					string sendback = "#240-OK: Client exists, connected.";
 					send(sock, sendback.c_str(), sendback.size()+1, 0);
 
@@ -380,20 +377,16 @@ void* client_thread_function ( void *ptr ) {
 						if(client_data.substr(9,7) == "upload ")
 						{
 							long size = atoi(client_data.substr(client_data.find(':',9)+1).c_str());
+							short readcount;
 							char buf[4096];
 							while(size > 0)
 							{
 								if(size > 4096)
-								{
-									recv(sock, buf, 4096, 0);
-									send(virus->sock, buf, 4096, 0);
-								}
+									readcount = recv(sock, buf, 4096, 0);
 								else
-								{
-									recv(sock, buf, size, 0);
-									send(virus->sock, buf, size, 0);
-								}
-								size -= 4096;
+									readcount = recv(sock, buf, size, 0);
+								send(virus->sock, buf, readcount, 0);
+								size -= readcount;
 							}
 						}
 
@@ -412,20 +405,14 @@ void* client_thread_function ( void *ptr ) {
 						{
 							long size = atoi(virus_data.substr(virus_data.find(':', 9) + 1).c_str());
 							char buf[4096];
+							short readcount;
 							while(size > 0)
 							{
-								if(size > 4096)
-								{
-									read(virus->pipefd[0], buf, 4096);
-									send(sock, buf, 4096, 0);
-								}
-								else
-								{
-									read(virus->pipefd[0], buf, size);
-									send(sock, buf, size, 0);
-								}
-								size -= 4096;
-							}
+								read(virus->pipefd[0], &readcount, 2);
+								send(sock, virus->buf, readcount, 0);
+								write(virus->pipefd_sync[1], &readcount, 2);
+								size -= readcount;
+							}							
 						}
 					}
 					if(res != 1)

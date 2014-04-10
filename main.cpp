@@ -14,7 +14,7 @@
 #include <vector>
 
 using namespace std;
-
+ 
 struct Connection
 { 
     int sock;

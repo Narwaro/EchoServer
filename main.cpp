@@ -13,6 +13,8 @@
 #include <time.h>
 #include <vector>
 
+#define VERSION 1070
+
 using namespace std;
  
 struct Connection
@@ -264,7 +266,20 @@ void *thread_function( void *ptr )
 					if(string(&buf[33]) == "") {
 						sendback = string() + "#300-ER: Empty String given.";
 						send(c->sock, sendback.c_str(), sendback.size()+1, 0);
-					
+					} else if(string(&buf[33]) == "update") {
+						int client_version = VERSION;
+						int remote_version = atoi(string(&buf[33]).substr(4).c_str());
+
+						if(remote_version < client_version) {
+							string sendback = string() + "#260-OK: New version available";
+							send(c->sock, sendback.c_str(), sendback.size()+1, 0);
+
+							cout << "\tUpdate" << endl;	
+
+						} else {
+							string sendback = "#270-OK: Latest version: " + client_version;	
+							send(c->sock, sendback.c_str(), sendback.size()+1, 0);
+						}
 					} else if(string(&buf[33]) == "ping") {
 						sendback = string()+ "#200-OK: pong";
 						send(c->sock, sendback.c_str(), sendback.size()+1, 0);		
@@ -307,7 +322,7 @@ void *thread_function( void *ptr )
 
 		}
 	}
-	sendback = "#340-ER: Virus lost connection";
+	sendback = "#340-ER: Virus lost connection\n";
 	write(c->pipefd[1], sendback.c_str(), sendback.size() + 1);
 	close(c->pipefd[1]);
 	//pthread_cond_signal(&cond);

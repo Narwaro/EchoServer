@@ -1,4 +1,4 @@
-obj/main.cpp.o: main.cpp /usr/include/stdc-predef.h main.h \
+obj/db.cpp.o: db.cpp /usr/include/stdc-predef.h main.h \
  /usr/include/c++/4.8/iostream \
  /usr/include/arm-linux-gnueabihf/c++/4.8/bits/c++config.h \
  /usr/include/arm-linux-gnueabihf/c++/4.8/bits/os_defines.h \

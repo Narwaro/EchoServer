@@ -14,7 +14,11 @@
 #include <vector>
 
 using namespace std;
+<<<<<<< HEAD
 
+=======
+ 
+>>>>>>> origin/pre
 struct Connection
 { 
     int sock;

@@ -15,16 +15,17 @@
 #include <mysql/mysql.h>
 #include "rsa.h"
 #include "padding.h"
-#include "aes256.h"
+#include "securesocket.h"
 
 using namespace std;
 using namespace YansLibrary;
 
 struct Connection
 { 
-    int sock;
-	string client_id;
+    int sockfd;
     sockaddr_in addr;
+	secure_socket sock;
+	string client_id;
 	int pipefd[2];
 	int pipefd_sync[2];
 	char* buf;
@@ -35,10 +36,8 @@ struct Connection
 void *thread_function( void *ptr );
 void *client_thread( void *ptr );
 void *client_thread_function( void *ptr );
-int readline ( int socket, string& str );
+//int readline ( int socket, string& str );
 
 string itoa(long i);
 int update_client();
 MYSQL* mysql();
-int secure_send(int sock, aes256_context* ctx, const char* data, int size);
-int secure_read(int sock, aes256_context* ctx, char** data);

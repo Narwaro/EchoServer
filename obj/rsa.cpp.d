@@ -78,6 +78,7 @@ obj/rsa.cpp.o: rsa.cpp /usr/include/stdc-predef.h \
  /usr/include/libio.h /usr/include/_G_config.h \
  /usr/include/arm-linux-gnueabihf/bits/stdio_lim.h \
  /usr/include/arm-linux-gnueabihf/bits/sys_errlist.h \
+ /usr/include/arm-linux-gnueabihf/bits/stdio.h \
  /usr/include/arm-linux-gnueabihf/c++/4.8/bits/basic_file.h \
  /usr/include/arm-linux-gnueabihf/c++/4.8/bits/c++io.h \
  /usr/include/c++/4.8/bits/fstream.tcc rsa.h /usr/local/include/gmpxx.h \
@@ -92,6 +93,7 @@ obj/rsa.cpp.o: rsa.cpp /usr/include/stdc-predef.h \
  /usr/include/arm-linux-gnueabihf/bits/select.h \
  /usr/include/arm-linux-gnueabihf/bits/sigset.h \
  /usr/include/arm-linux-gnueabihf/sys/sysmacros.h /usr/include/alloca.h \
+ /usr/include/arm-linux-gnueabihf/bits/stdlib-bsearch.h \
  /usr/include/arm-linux-gnueabihf/bits/stdlib-float.h \
  /usr/include/c++/4.8/bits/algorithmfwd.h \
  /usr/include/c++/4.8/bits/stl_heap.h \

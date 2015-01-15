@@ -17,18 +17,19 @@ MYSQL* mysql () {
 		printf("Connected to MySQL-Server!\n");
     }
     //mysql_close(mConnection);
-	int result = mysql_query(mConnection, "SELECT * FROM log ORDER BY id DESC LIMIT 0,10");
+    
+    int result = mysql_query(mConnection, "SELECT * FROM log ORDER BY id DESC LIMIT 0,10");
     if(result == 0) {
-		cout << "Query succeeded.\n" << endl; 
-		MYSQL_RES* res = mysql_store_result(mConnection);
-		MYSQL_ROW row = mysql_fetch_row(res);
-		for(int i = 0; i < mysql_num_fields(res); i++ ) {
-			cout << row[i] << "|";
-		}
-		cout << "\n" << endl;
-	} else {
-		cout << "ERROR!\n" << mysql_error(mConnection) << endl;
-		return NULL;
+	cout << "Query succeeded.\n" << endl; 
+	MYSQL_RES* res = mysql_store_result(mConnection);
+	MYSQL_ROW row = mysql_fetch_row(res);
+	for(int i = 0; i < mysql_num_fields(res); i++ ) {
+            cout << row[i] << "|";
 	}
-	return mConnection;
+	cout << "\n" << endl;
+    } else {
+	cout << "ERROR!\n" << mysql_error(mConnection) << endl;
+        //return NULL;
+    }
+    return mConnection;
 }

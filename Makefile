@@ -1,8 +1,8 @@
 CC=g++
-Cflags=-c -MD
+Cflags=-c -MD -O3
 LDflags=-lmysqlclient -lpthread -lgmpxx -lgmp
 
-Input=main.cpp db.cpp rsa.cpp padding.cpp aes256.c
+Input=main.cpp db.cpp rsa.cpp padding.cpp securesocket.cpp aes256.c
 ObjDir=obj
 BinDir=bin
 Output=EchoServer

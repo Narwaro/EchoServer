@@ -17,9 +17,10 @@
 *   ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 *   OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 */
-#ifndef uint8_t
-#define uint8_t  unsigned char
-#endif
+#ifndef AES256_H_INCLUDED
+#define AES256_H_INCLUDED
+
+#include <stdint.h>
 
 #ifdef __cplusplus
 extern "C" { 
@@ -40,3 +41,5 @@ extern "C" {
 #ifdef __cplusplus
 }
 #endif
+
+#endif //AES256_H_INCLUDED

@@ -29,6 +29,8 @@ namespace YansLibrary
     void RSA_AtoKeyPair(char* buf, struct RSA_Key* keypair);
     void RSA_KeyPairToA(struct RSA_KeyPair* keypair, char* buf);
 
+	void NumberToArray(mpz_class n, char* buf, int bufsize);
+	void ArrayToNumber(char* buf, int bufsize, mpz_class &n);
     //NOTE: N >= 2^(L-32) => Maximum Data Length = L - 32 Bit
 }
 

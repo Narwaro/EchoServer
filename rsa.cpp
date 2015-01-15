@@ -48,7 +48,7 @@ void YansLibrary::RSA_GetPrivateKey(struct RSA_KeyPair* keypair, struct RSA_Key*
     key->e = keypair->d;
 }
 
-void NumberToArray(mpz_class n, char* buf, int bufsize)
+void YansLibrary::NumberToArray(mpz_class n, char* buf, int bufsize)
 {
     mpz_class next;
     for(int i = 0; i < bufsize; i++)
@@ -59,7 +59,7 @@ void NumberToArray(mpz_class n, char* buf, int bufsize)
     }
 }
 
-void ArrayToNumber(char* buf, int bufsize, mpz_class &n)
+void YansLibrary::ArrayToNumber(char* buf, int bufsize, mpz_class &n)
 {
     n = 0;
     for(int i = bufsize - 1; i >= 0; i--)

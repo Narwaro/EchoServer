@@ -77,13 +77,15 @@ obj/db.cpp.o: db.cpp /usr/include/stdc-predef.h main.h \
  /usr/include/_G_config.h \
  /usr/include/arm-linux-gnueabihf/bits/stdio_lim.h \
  /usr/include/arm-linux-gnueabihf/bits/sys_errlist.h \
- /usr/include/stdlib.h /usr/include/arm-linux-gnueabihf/bits/waitflags.h \
+ /usr/include/arm-linux-gnueabihf/bits/stdio.h /usr/include/stdlib.h \
+ /usr/include/arm-linux-gnueabihf/bits/waitflags.h \
  /usr/include/arm-linux-gnueabihf/bits/waitstatus.h \
  /usr/include/arm-linux-gnueabihf/sys/types.h \
  /usr/include/arm-linux-gnueabihf/sys/select.h \
  /usr/include/arm-linux-gnueabihf/bits/select.h \
  /usr/include/arm-linux-gnueabihf/bits/sigset.h \
  /usr/include/arm-linux-gnueabihf/sys/sysmacros.h /usr/include/alloca.h \
+ /usr/include/arm-linux-gnueabihf/bits/stdlib-bsearch.h \
  /usr/include/arm-linux-gnueabihf/bits/stdlib-float.h \
  /usr/include/arm-linux-gnueabihf/sys/socket.h \
  /usr/include/arm-linux-gnueabihf/sys/uio.h \
@@ -125,4 +127,4 @@ obj/db.cpp.o: db.cpp /usr/include/stdc-predef.h main.h \
  /usr/include/c++/4.8/bits/stl_tempbuf.h /usr/include/c++/4.8/stdexcept \
  /usr/include/c++/4.8/cfloat \
  /usr/lib/gcc/arm-linux-gnueabihf/4.8/include/float.h \
- /usr/local/include/gmp.h padding.h aes256.h
+ /usr/local/include/gmp.h padding.h securesocket.h aes256.h

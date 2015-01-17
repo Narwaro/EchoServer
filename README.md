@@ -51,6 +51,16 @@ echoserver
   
   Changelog:
   
+  v0.8.14 PRE - 01/17/2015:
+  
+    - Added Webinterface
+    - Added more detailed logging
+    - Added 3 tables to record actions
+    - Encryption is working now
+    - Recieving files from the viurs is currently producing errors, investigating
+    - Currently stuck in v0.8.x, more features soon! I am first trying to get everything running smoothly
+  
+  
   v0.8PRE - 10/03/2014:
   
     - Added communication encryption, not used right now

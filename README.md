@@ -51,17 +51,59 @@ echoserver
   
   Changelog:
   
+  v0.8PRE - 10/03/2014:
+    - Added communication encryption, not used right now
+    - Added RSA keychain generation
+    - Added AES256 implementation, not used right now
+    - Added YansLibary
+    - More ideas in development, coming in v0.8
+
+
+  v0.7 - 06/10/2014:
+  
+    - Intensive development, more changes than just recoreded here
+    - Added mouse block
+    - Mouse block now working properly under Windows 8
+    - Protocol extended
+
+
+  v0.6 - 04/06/2014:
+  
+    - Added download command to project, just working directly
+    - Added upload command, not working so far (Virus issue)
+    - Added exit command to client
+    - Virus: New screenshot libary with WindowsAPI and LodePNG, not implemented yet
+    - Virus: New multi-language keylogger libary, not implemented yet
+
+
+  v0.5 - 03/20/2014:
+  
+    - Added pipe and working commands to EchoClient and Virus 
+    - Added help command
+    - Third server thread added
+    - Various performance and runtime fixes
+
+
+  v0.4 - 03/10/2014:
+  
+    - EchoClient added, used to control Viruses
+    - Second sever thread for EchoClient added
+    - Fixed socket errors
+    - Fixed tunneling issues
+
+
   v0.18 - 11/21/2013:
   
-  - MySQL-Connnections work now
-  - Threading added
-  - Fixed TCP and Pipe errors
-  - Error Codes added
-  - Unique ID added
-  - Information exchange protocol added
-  
-  
+    - MySQL-Connnections work now
+    - Threading added
+    - Fixed TCP and Pipe errors
+    - Error Codes added
+    - Unique ID added
+    - Information exchange protocol added
+
+
   v0.1 - 11/19/2013:
   
-  - first, ugly Release
+    - initial, ugly Release
+    - Right now just a real "echo" server, sends requests immediately back to client (the Virus)
   

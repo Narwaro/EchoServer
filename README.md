@@ -10,7 +10,7 @@ echoserver
           \/     \/     \/              \/     \/                 \/      
 </pre>
           
-  ©2013 - Narwaro (admin@narwaro.com), http://narwaro.com
+  ©2015 - Narwaro (admin@narwaro.com), http://narwaro.com
 
   This is the Server-Software of the Echo-Collection. The Echo-Collection is a type of Open-source Backdoor-Trojan.
   Everybody is allowed to compile for himself, I will not give support in preventing the software will be manipulated
@@ -18,7 +18,7 @@ echoserver
   The Client, the Virus "itself", is not developed so far that it can be publicated. On request I will pass on the 
   Client. 
   
-  Development-Version: 0.18 (11/21/2013)
+  Development-Version: 0.8.4 PRE (2015/01/15)
   
   Stable Release: - 
   

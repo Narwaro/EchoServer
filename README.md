@@ -45,13 +45,14 @@ echoserver
   Background:
   A buddy wrote a Program that could download and upload files from another computer. He just wanted to steal some 
   Pictures, but I thought that this can do more and can be more fun. I just started Development on November the 19th, 
-  2013. Only a few days later here is an realease, that isn't stable yet, (oh long time it will take ;) ) but is a view
+  '13. Only a few days later here is an realease, that isn't stable yet, (oh long time it will take ;) ) but is a view
   to a cool Weekend- and Coffee-Break-Project. I hope to your delingent support and ideas, a friendly comment or 
   suggestions for improovement would be nice.
   
   Changelog:
   
   v0.8PRE - 10/03/2014:
+  
     - Added communication encryption, not used right now
     - Added RSA keychain generation
     - Added AES256 implementation, not used right now

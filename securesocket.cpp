@@ -6,6 +6,9 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include <iostream>
+using namespace std;
+
 bool secure_init(struct secure_socket* sock, int fd, unsigned char* key)
 {
     sock->fd = fd;
@@ -33,10 +36,15 @@ int secure_read(struct secure_socket* sock)
     }
 
     //read size
-    short size, bufsize;
+    short i, rdc, size, bufsize;
     unsigned char buf[32];
-    if(recv(sock->fd, (char*)buf, 32, 0) == -1)
-        return -1;
+	i = 0;
+	while(i < 32)
+	{
+		if((rdc = recv(sock->fd, (char*)buf + i, 32 - i, 0)) == -1)
+			return -1;
+		i += rdc;
+	}
     aes256_decrypt_ecb(&sock->ctx, buf);
     size = *(short*)&buf[0];
     for(int i = 1; i < 32 / sizeof(size); i++)
@@ -48,16 +56,16 @@ int secure_read(struct secure_socket* sock)
     sock->buf = (char*)malloc(bufsize);
 
     //read data
-    int i = 0, rc = 0;
+	i = 0;
     while(i < bufsize)
     {
-        i += (rc = recv(sock->fd, sock->buf + i, bufsize - i, 0));
-        if(rc == -1)
+        if((rdc = recv(sock->fd, sock->buf + i, bufsize - i, 0)) == -1)
         {
             free(sock->buf);
             sock->buf = 0;
             return -1;
         }
+		i += rdc;
     }
 
     //decrypt data

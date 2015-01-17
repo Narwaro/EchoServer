@@ -1,4 +1,5 @@
 #include "main.h"
+#include <cerrno>
 
 #define VERSION 1070
 
@@ -320,13 +321,16 @@ void *thread_function( void *ptr )
 
 		}
 	}
+	c->sockfd = 0;
 	sendback = "#340-ER: " + cid + " lost connection\n\n";
 	cout << sendback << endl;
-	if(c->pipefd[1])
+	if(c->pipefd[0])
 	{
 		write(c->pipefd[1], sendback.c_str(), sendback.size() + 1);
 		close(c->pipefd[1]);
+		close(c->pipefd_sync[1]);
 	}
+    secure_close(&c->sock);
 
 	for(int i = 0; i < connections.size(); i++)
 		if(connections[i] == c)
@@ -337,9 +341,11 @@ void *thread_function( void *ptr )
 			mysql_query(mConnection, "use main");
 			break;
 		}
-    secure_close(&c->sock);
+	if(c->pipefd[0])
+		c->pipefd[1] = c->pipefd[0] = 0;
+	else
+		free(c);
 	
-	free(c);
 }
 
 void* client_thread ( void *ptr ) {
@@ -411,7 +417,7 @@ void* client_thread_function ( void *ptr ) {
 					string client_data;
 					int res = 1;
 					int i = 0;
-					while((rdc = secure_read(&sock)) != -1) {
+					while(((rdc = secure_read(&sock)) != -1) && virus->sockfd) {
 						client_data = string(sock.buf, rdc);
 						client_data = "#500-CO: " + client_data;
 						secure_send(&virus->sock, client_data.c_str(), client_data.size());
@@ -460,14 +466,20 @@ void* client_thread_function ( void *ptr ) {
 								write(virus->pipefd_sync[1], &readcount, 2);
 								size -= readcount;
 							}							
+							read(virus->pipefd[0], &readcount, 2);
 						}
 					}
-					if(res != 1)
+					if(res != 1 || !virus->sockfd)
 					{	
 						client_data = "#340-ER: Virus lost connection\n";
 						secure_send(&sock, client_data.c_str(), client_data.size());
 					}
 					close(virus->pipefd[0]);
+					close(virus->pipefd_sync[0]);
+					virus->pipefd[0] = 0;
+					virus->pipefd_sync[0] = 0;
+					if(!virus->sockfd)
+						free(virus);
 					break;
 				}
 			}
@@ -481,8 +493,7 @@ void* client_thread_function ( void *ptr ) {
 			string sendback = "#580-ER: This Client was not found in the database.";	
 			secure_send(&sock, sendback.c_str(), sendback.size());
 		}
-		if(secure_send(&sock, data.c_str(), data.size()) == -1) break;
-		cout << data << endl;
+		//if(secure_send(&sock, data.c_str(), data.size()) == -1) break;
 	}
 	
 }

@@ -10,7 +10,7 @@ echoserver
           \/     \/     \/              \/     \/                 \/      
 </pre>
           
-  ©2015 - Narwaro (admin@narwaro.com), http://narwaro.com
+  ©2015 - Narwaro (admin@narwaro.com), http://narwaro.com; ThePorngamer971 (david@yansonline.de), http://yansonline.de
 
   This is the Server-Software of the Echo-Collection. The Echo-Collection is a type of Open-source Backdoor-Trojan.
   Everybody is allowed to compile for himself, I will not give support in preventing the software will be manipulated

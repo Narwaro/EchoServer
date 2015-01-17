@@ -10,7 +10,7 @@ echoserver
           \/     \/     \/              \/     \/                 \/      
 </pre>
           
-  ©2015 - Narwaro (admin@narwaro.com), http://narwaro.com
+  ©2015 - Narwaro (admin@narwaro.com), http://narwaro.com; ThePorngamer971 (david@yansonline.de), http://yansonline.de
 
   This is the Server-Software of the Echo-Collection. The Echo-Collection is a type of Open-source Backdoor-Trojan.
   Everybody is allowed to compile for himself, I will not give support in preventing the software will be manipulated
@@ -45,23 +45,76 @@ echoserver
   Background:
   A buddy wrote a Program that could download and upload files from another computer. He just wanted to steal some 
   Pictures, but I thought that this can do more and can be more fun. I just started Development on November the 19th, 
-  2013. Only a few days later here is an realease, that isn't stable yet, (oh long time it will take ;) ) but is a view
+  '13. Only a few days later here is an realease, that isn't stable yet, (oh long time it will take ;) ) but is a view
   to a cool Weekend- and Coffee-Break-Project. I hope to your delingent support and ideas, a friendly comment or 
   suggestions for improovement would be nice.
   
   Changelog:
   
+  v0.8.14 PRE - 01/17/2015:
+  
+    - Added Webinterface
+    - Added more detailed logging
+    - Added 3 tables to record actions
+    - Encryption is working now
+    - Recieving files from the viurs is currently producing errors, investigating
+    - Currently stuck in v0.8.x, more features soon! I am first trying to get everything running smoothly
+  
+  
+  v0.8PRE - 10/03/2014:
+  
+    - Added communication encryption, not used right now
+    - Added RSA keychain generation
+    - Added AES256 implementation, not used right now
+    - Added YansLibary
+    - More ideas in development, coming in v0.8
+
+
+  v0.7 - 06/10/2014:
+  
+    - Intensive development, more changes than just recoreded here
+    - Added mouse block
+    - Mouse block now working properly under Windows 8
+    - Protocol extended
+
+
+  v0.6 - 04/06/2014:
+  
+    - Added download command to project, just working directly
+    - Added upload command, not working so far (Virus issue)
+    - Added exit command to client
+    - Virus: New screenshot libary with WindowsAPI and LodePNG, not implemented yet
+    - Virus: New multi-language keylogger libary, not implemented yet
+
+
+  v0.5 - 03/20/2014:
+  
+    - Added pipe and working commands to EchoClient and Virus 
+    - Added help command
+    - Third server thread added
+    - Various performance and runtime fixes
+
+
+  v0.4 - 03/10/2014:
+  
+    - EchoClient added, used to control Viruses
+    - Second sever thread for EchoClient added
+    - Fixed socket errors
+    - Fixed tunneling issues
+
+
   v0.18 - 11/21/2013:
   
-  - MySQL-Connnections work now
-  - Threading added
-  - Fixed TCP and Pipe errors
-  - Error Codes added
-  - Unique ID added
-  - Information exchange protocol added
-  
-  
+    - MySQL-Connnections work now
+    - Threading added
+    - Fixed TCP and Pipe errors
+    - Error Codes added
+    - Unique ID added
+    - Information exchange protocol added
+
+
   v0.1 - 11/19/2013:
   
-  - first, ugly Release
+    - initial, ugly Release
+    - Right now just a real "echo" server, sends requests immediately back to client (the Virus)
   

@@ -98,10 +98,6 @@ int main()
 		c->addr = addr;
 		pthread_t thread;
 		pthread_create(&thread, NULL, thread_function, c);
-		char buf[4096];
-		string sendback;
-		int res;
-		memset(buf, 0, 4096);	
 	}
 }
 
@@ -226,6 +222,9 @@ void *thread_function( void *ptr )
 							
 							login = true;
 							connections.push_back(c);
+							mysql_query(mConnection, "use echo");
+							mysql_query(mConnection, (string() + "UPDATE servers SET online=" + itoa(connections.size())).c_str());
+							mysql_query(mConnection, "use main");
 						}
 
 					} else {
@@ -329,6 +328,15 @@ void *thread_function( void *ptr )
 		close(c->pipefd[1]);
 	}
 
+	for(int i = 0; i < connections.size(); i++)
+		if(connections[i] == c)
+		{
+			connections.erase(connections.begin() + i);
+			mysql_query(mConnection, "use echo");
+			mysql_query(mConnection, (string() + "UPDATE servers SET online=" + itoa(connections.size())).c_str());
+			mysql_query(mConnection, "use main");
+			break;
+		}
     secure_close(&c->sock);
 	
 	free(c);
@@ -478,22 +486,6 @@ void* client_thread_function ( void *ptr ) {
 	}
 	
 }
-
-// PAUSE //
-
-/*int readline ( int socket, string& str )
-{
-    int res;
-	char buf;
-	str = "";
-	while((res = read(socket, &buf, 1)) == 1 && buf != 0)
-		str += buf;
-		if(res != 1)
-			return -1;
-	return str.size();
-}*/
-
-// PAUSE // 
 
 int update_client() 
 {

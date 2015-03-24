@@ -1,11 +1,11 @@
-echoserver
+EchoServer
 ==========
 
 <pre>
-  ___________      .__            _________                                
+  ___________       __            _________                                
   \_   _____/ ____ |  |__   ____ /   _____/ ______________  __ ___________ 
    |    __)__/ ___\|  |  \ /  _ \\_____  \_/ __ \_  __ \  \/ // __ \_  __ \
-   |        \  \___|   Y  (  <_> )        \  ___/|  | \/\   /\  ___/|  | \/
+   |        \  \___|   Y  (  <_> )_____   \  ___/|  | \/\   /\  ___/|  | \/
   /_______  /\___  >___|  /\____/_______  /\___  >__|    \_/  \___  >__|   
           \/     \/     \/              \/     \/                 \/      
 </pre>
@@ -50,6 +50,17 @@ echoserver
   suggestions for improovement would be nice.
   
   Changelog:
+  
+  v0.8.15 PRE - 2015/03/24:
+  
+    - Some updates after dev pause for focusing on embedded devices and assemby lang
+    - Lots of bugfixes
+    - Fixed a bug in server and EchoClient that prevented viruses from being found in the db
+    - Upload and download fully working, encrypted
+    - Increased transfer speed
+    - Currently working on further imrovements 
+    - 2 options for transfers in new version: Speed or reliability
+    - Echo is becoming stable, yeah
   
   v0.8.14 PRE - 01/17/2015:
   
